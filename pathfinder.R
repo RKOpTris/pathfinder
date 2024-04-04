@@ -54,6 +54,7 @@ visualise_paths <- function(){
 
 reset_global_vars <- function(start_waypoint){
   global_vars$total_runs <- 0
+  global_vars$total_attempts <- 0
   global_vars$max_runs <- 100000
   global_vars$successful_routes <- list()
   global_vars$successful_distances <- numeric()
@@ -73,6 +74,7 @@ reset_run_vars <- function(){
   run_vars$all_points_visited <- F
   run_vars$fail_reason <- ""
   run_vars$search_runs <- 0
+  run_vars$waypoint_probs <- matrix(1, nrow = nrow(my_points), dimnames = list(my_points$waypoint))
 }
 
 fail_run <- function(record_all_codes){
@@ -84,6 +86,7 @@ fail_run <- function(record_all_codes){
     global_vars$run_code <- c(global_vars$run_code, error_code)
   }
   reset_run_vars()
+  global_vars$total_attempts <- global_vars$total_attempts + 1
 }
 
 succeed_run <- function(record_all_codes){
@@ -96,6 +99,7 @@ succeed_run <- function(record_all_codes){
     global_vars$run_code <- c(global_vars$run_code, "S")
   }
   reset_run_vars()
+  global_vars$total_attempts <- global_vars$total_attempts + 1
 }
 
 global_vars <- new.env()
@@ -122,7 +126,7 @@ get_distance <- function(p1, p2){
   distances[p1, p2]
 }
 
-find_path <- function(start_waypoint = "a", max_visits = 3, max_runs = 100000, record_all_codes = T){
+find_path <- function(start_waypoint = "a", max_visits = 3, max_runs = 100000, record_all_codes = T, visit_penalty = 0.25){
   
   reset_run_vars()
   reset_global_vars(start_waypoint)
@@ -142,8 +146,10 @@ find_path <- function(start_waypoint = "a", max_visits = 3, max_runs = 100000, r
     # travelling loop
     if(run_vars$distance_travelled == 0){
       (run_vars$current_waypoint <- global_vars$start_waypoint)
+      run_vars$waypoint_probs[run_vars$current_waypoint, 1] <- run_vars$waypoint_probs[run_vars$current_waypoint, 1] * visit_penalty
     } else {
       (run_vars$current_waypoint <- run_vars$route_travelled[length(run_vars$route_travelled)])
+      run_vars$waypoint_probs[run_vars$current_waypoint, 1] <- run_vars$waypoint_probs[run_vars$current_waypoint, 1] * visit_penalty
       ##### this may not be the best place to put this!
       if(run_vars$distance_travelled > global_vars$best_distance_success){
         run_vars$fail_reason <- "exceeded best distance"
@@ -172,8 +178,11 @@ find_path <- function(start_waypoint = "a", max_visits = 3, max_runs = 100000, r
     all_paths <- rbind(my_paths,
                        rename(my_paths[c(2, 1, 3)], p1 = p2, p2 = p1))
     (possible_destinations <- all_paths %>% filter(p1 == run_vars$current_waypoint))
+    run_vars$waypoint_probs
+    (weighted_probs <- run_vars$waypoint_probs[possible_destinations$p2, 1])
+    (weighted_probs <- weighted_probs / sum(weighted_probs))
     # travel
-    (chosen_destination <- possible_destinations[sample(1:nrow(possible_destinations), 1), ])
+    (chosen_destination <- possible_destinations[sample(1:nrow(possible_destinations), 1, prob = weighted_probs), ])
     # update route_travelled
     (run_vars$route_travelled <- c(run_vars$route_travelled, chosen_destination$p2))
     # update distance_travelled
@@ -227,7 +236,7 @@ get_path_length <- function(charvec){
 my_points <- init_points()
 my_paths <- init_paths()
 visualise_paths()
-(run1 <- find_path(max_runs = 50000, record_all_codes = F))
+(run1 <- find_path(max_runs = 50000, visit_penalty = 0.25))
 
 my_points <- init_points()
 my_paths <- init_paths()
@@ -245,13 +254,15 @@ visualise_paths()
 plot_path(run2$best_route)
 
 #measuring model performance
-which(run2$run_code == "S") - 1
-which(run2$run_code == "S") + 1
-table(run2$run_code[1:186])
-table(run2$run_code[188:619])
-table(run2$run_code[621:748])
-table(run2$run_code[750:length(run2$run_code)])
+start_runs <- which(run2$run_code == "S") - 1
 
+run_analysis <- run2$run_code %>% paste(collapse = ",") %>% str_split(",S,") %>% sapply(str_split, ",")
+run_analysis <- sapply(run_analysis, table)
+lapply(run_analysis, function(x){
+  y <- x %>% data.frame()
+  y$Prop <- y$Freq / sum(y$Freq)
+  y
+})
 
 
 
@@ -259,6 +270,9 @@ table(run2$run_code[750:length(run2$run_code)])
 ### should get to start point by quickest means once all sites visited
 ### should the algorithm START by searching for paths just using 1 waypoint, then if it fails, expand to 2, etc.
 ### can the algorithm LEARN in this way?
+### or could the algorithm learn in terms of best waypoint combinations plus distance covered, whilst minimising 
+###### repeated waypoint visits, *particularly if they are immediate*. maybe implement a gradual cooldown as other
+###### waypoints are visited?
 ### certainly don't let a ping pong, e.g., E, D, E, then D again. E, D, E, is okay if D is a "spoke"
 ### if a good solution has been found then stop
 ### can the code work faster?
