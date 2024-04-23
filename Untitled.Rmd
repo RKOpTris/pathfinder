@@ -1,0 +1,119 @@
+---
+title: 'pathfinder: an algorithm for finding the most efficient path between waypoints'
+author: "RKOpTris"
+date: '2024-04-21'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Abstract
+
+Come with me on a journey to write an algorithm from scratch which finds the most efficient path between a set of waypoints with a variety of paths between them.
+
+
+## Introduction
+
+My girlfriend and I enjoy running orienteering races where we are given a map with some waypoints to reach. The idea is, from the start point, to reach as many waypoints and get to the finish waypoint (usually the starting one) within a certain time. You get points for each waypoint you reach, but points get deducted if you exceed the race length time; the more points tthe later you are!
+
+I thought it would be fun to write and algorithm that helps us plan a route, given the speed we typically run at, the topography, etc.
+
+Writing this from scratch, I am starting with a "dumb" algorithm, and then working iteratively to improve it and then integrate features such as topography and fatigue. We start with generating some points and paths at random in order to build our algorithm from the ground up.
+
+
+### Methods and R code
+
+Okay, so first thing is, is to produce some randomly generated [x, y] waypoints and some randomly generated paths that join them. A waypoint may have many paths connecting it to others, or only one. Here's a few functions to do that, and then we'll visualise them.
+
+```{r, initial_funs, fig.width=12, fig.height=12}
+library(dplyr)
+
+generate_points <- function(n, mean = 0, sd = 1){
+  data.frame(waypoint = letters[1:n],
+             x = rnorm(n, mean, sd),
+             y = rnorm(n, mean, sd))
+}
+
+generate_paths <- function(){
+  waypoints <- my_points$waypoint
+  p1 <- c()
+  while(length(unique(p1)) < length(waypoints)){
+    p1 <- c(p1, sample(waypoints, 1))
+  }
+  p2 <- sample(waypoints, length(p1), replace = T)
+  paths <- data.frame(p1, p2)
+  #remove p1 == p2
+  paths <- paths[-which(paths$p1 == paths$p2), ]
+  row.names(paths) <- NULL
+  #remove duplicates
+  duplicates <- c()
+  for(i in 1:(nrow(paths) - 1)){
+    p2 <- paths$p1[i]
+    p1 <- paths$p2[i]
+    rem <- paths[(i + 1):nrow(paths), ]
+    dup <- rem[rem$p1 == p1 & rem$p2 == p2, ]
+    if(length(dup) < 0){
+      next
+    } else {
+      duplicates <- c(duplicates, as.numeric(row.names(dup)))
+    }
+  }
+  paths <- paths[-duplicates, ]
+  paths
+}
+
+get_pos <- function(x, waypoint){
+  as.numeric(x[x$waypoint == waypoint, c("x", "y")])
+}
+
+visualise_paths <- function(){
+  plot(y ~ x, my_points, type = "n", las = 1)
+  text(y ~ x, my_points, labels = waypoint, cex = 2)
+  
+  a2b <- my_paths
+  for(i in 1:nrow(a2b)){
+    p1 <- a2b$p1[i]
+    p2 <- a2b$p2[i]
+    a <- get_pos(my_points, p1)
+    b <- get_pos(my_points, p2)
+    points(a[1], a[2], col = "red", pch = 16)
+    arrows(a[1], a[2], b[1], b[2], length = 0, lty = 2)
+  }
+}
+
+get_distance <- function(p1, p2){
+  distances <- my_points %>% tibble::column_to_rownames("waypoint") %>% dist(upper = T, diag = T) %>% as.matrix()
+  distances[p1, p2]
+}
+
+init_points <- function(n_points = 10, my_seed = 1138, seed_n = 2){
+  set.seed(my_seed)
+  for(i in 1:seed_n){
+    my_points <- generate_points(n_points, 0)
+  }
+  my_points
+}
+
+init_paths <- function(){
+  my_paths <- generate_paths()
+  distances <- my_points %>% tibble::column_to_rownames("waypoint") %>% dist(upper = T, diag = T) %>% as.matrix()
+  for(i in 1:nrow(my_paths)){
+    my_paths$distance[i] <- get_distance(my_paths$p1[i], my_paths$p2[i])
+  }
+  my_paths
+}
+
+my_points <- init_points()
+my_paths <- init_paths()
+visualise_paths()
+```
+
+
+
+
+
+
+
+

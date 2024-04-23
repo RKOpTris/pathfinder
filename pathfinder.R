@@ -65,6 +65,7 @@ reset_global_vars <- function(start_waypoint){
   global_vars$number_successes <- 0
   global_vars$number_fails <- 0
   global_vars$best_distance_success <- Inf
+  global_vars$search_runtime <- 0
 }
 
 reset_run_vars <- function(){
@@ -79,7 +80,7 @@ reset_run_vars <- function(){
 
 fail_run <- function(record_all_codes){
   #message(paste("Search failed because", run_vars$fail_reason))
-  message(global_vars$total_runs)
+  #message(global_vars$total_runs)
   global_vars$number_fails <- global_vars$number_fails + 1
   if(record_all_codes){
     error_code <- ifelse(run_vars$fail_reason == "exceeded best distance", "F-XD", "F-MW")
@@ -90,7 +91,7 @@ fail_run <- function(record_all_codes){
 }
 
 succeed_run <- function(record_all_codes){
-  message(paste(global_vars$total_runs, ": search succeeded!!"))
+  message(paste0(global_vars$total_runs, ": path found!"))
   global_vars$number_successes <- global_vars$number_successes + 1
   global_vars$successful_routes[[global_vars$number_successes]] <- c(global_vars$start_waypoint, run_vars$route_travelled)
   global_vars$successful_distances[global_vars$number_successes] <- run_vars$distance_travelled
@@ -123,11 +124,25 @@ init_paths <- function(){
 }
 
 get_distance <- function(p1, p2){
+  distances <- my_points %>% tibble::column_to_rownames("waypoint") %>% dist(upper = T, diag = T) %>% as.matrix()
   distances[p1, p2]
 }
 
+report_success <- function(){
+  list(
+    search_runtime <- global_vars$search_runtime,
+    total_runs = global_vars$total_runs,
+    best_distance_success = global_vars$best_distance_success,
+    best_route = global_vars$successful_routes[[length(global_vars$successful_routes)]],
+    successful_distances = global_vars$successful_distances,
+    successful_routes = global_vars$successful_routes,
+    successful_runs = global_vars$successful_runs,
+    run_code = global_vars$run_code
+  )
+}
+
 find_path <- function(start_waypoint = "a", max_visits = 3, max_runs = 100000, record_all_codes = T, visit_penalty = 0.25){
-  
+  start_time <- Sys.time()
   reset_run_vars()
   reset_global_vars(start_waypoint)
   global_vars$start_waypoint <- start_waypoint
@@ -156,6 +171,13 @@ find_path <- function(start_waypoint = "a", max_visits = 3, max_runs = 100000, r
         fail_run(record_all_codes)
         next
       }
+    }
+    
+    successful_runs <- length(global_vars$successful_distances)
+    if(successful_runs > 4 && length(table(global_vars$successful_distances[length(global_vars$successful_distances):(length(global_vars$successful_distances) - 2)])) == 1){
+      report_success()
+      print("Best solution likely found!")
+      break
     }
     
     if(length(table(run_vars$route_travelled)) == nrow(my_points)){
@@ -188,15 +210,8 @@ find_path <- function(start_waypoint = "a", max_visits = 3, max_runs = 100000, r
     # update distance_travelled
     (run_vars$distance_travelled <- run_vars$distance_travelled + chosen_destination$distance)
   }
-  list(
-    total_runs = global_vars$total_runs,
-    best_distance_success = global_vars$best_distance_success,
-    best_route = global_vars$successful_routes[[length(global_vars$successful_routes)]],
-    successful_distances = global_vars$successful_distances,
-    successful_routes = global_vars$successful_routes,
-    successful_runs = global_vars$successful_runs,
-    run_code = global_vars$run_code
-  )
+  global_vars$search_runtime <- Sys.time() - start_time
+  report_success()
 }
 
 str_to_waypoints <- function(string){
@@ -233,20 +248,36 @@ get_path_length <- function(charvec){
   sum(path_taken$distance)
 }
 
+# set a seed within an environment without effecting the global environment
+
+withSeed <- function(expr, seed = 42) {
+  # inspired by Romain François, Theodore Lytras, Gwang-Jin Kim on Stack Exchange
+  # https://stackoverflow.com/questions/14324096/setting-seed-locally-not-globally-in-r
+  if(!exists(".Random.seed")){runif(1); existing.seed <- NULL}
+  existing.seed <- .Random.seed
+  on.exit({assign(".Random.seed", existing.seed, envir = .GlobalEnv)})
+  set.seed(seed)
+  expr
+}
+
 my_points <- init_points()
 my_paths <- init_paths()
 visualise_paths()
-(run1 <- find_path(max_runs = 50000, visit_penalty = 0.25))
+(run1 <- find_path(max_runs = 50000, visit_penalty = 1))
+plot_path(run1$best_route)
 
 my_points <- init_points()
 my_paths <- init_paths()
 my_paths <- init_paths()
 visualise_paths()
-(run2 <- find_path(start_waypoint = "i", max_visits = 3, max_runs = 50000))
+run2 <- withSeed(find_path(start_waypoint = "i", max_visits = 3, max_runs = 50000))
 
 # my answer
 "ihcdfgfabjechi" %>% str_to_waypoints() %>% get_path_length()
 "ihcdfgfabjechi" %>% str_to_waypoints() %>% plot_path()
+
+c("adgejhcbdgfa") %>% str_to_waypoints() %>% get_path_length()
+c("afgdeihfcbjigda") %>% str_to_waypoints() %>% get_path_length()
 
 # discovered answer
 run2$best_route %>% get_path_length()
@@ -254,17 +285,45 @@ visualise_paths()
 plot_path(run2$best_route)
 
 #measuring model performance
-start_runs <- which(run2$run_code == "S") - 1
 
-run_analysis <- run2$run_code %>% paste(collapse = ",") %>% str_split(",S,") %>% sapply(str_split, ",")
-run_analysis <- sapply(run_analysis, table)
-lapply(run_analysis, function(x){
-  y <- x %>% data.frame()
-  y$Prop <- y$Freq / sum(y$Freq)
-  y
-})
+error_code_summary <- function(run_object){
+  start_runs <- which(run_object$run_code == "S") - 1
+  run_analysis <- run_object$run_code %>% paste(collapse = ",") %>% str_split(",S,") %>% sapply(str_split, ",")
+  run_analysis <- sapply(run_analysis, table)
+  lapply(run_analysis, function(x){
+    y <- x %>% data.frame()
+    names(y) <- c("Error", "Frequency")
+    y$Proportion <- y$Frequency / sum(y$Frequency)
+    y[y$Error != "S", ]
+  })
+}
 
+error_code_for_plot <- function(error_code_summary_data){
+  do.call(rbind, lapply(1:length(error_code_summary_data), function(x){
+    y <- error_code_summary_data[[x]]
+    y$Run <- x
+    y
+  }))
+}
 
+plot_error_codes <- function(x){
+  x %>% 
+    error_code_summary %>% 
+    error_code_for_plot %>%
+    ggplot(aes(Run, Proportion, fill = Error)) + 
+    scale_y_continuous(breaks = seq(0, 1, 0.1)) +
+    scale_x_continuous(breaks = seq(1, length(x$successful_runs))) +
+    geom_bar(stat = "identity", position = "fill") +
+    theme_bw() +
+    theme(axis.title = element_text(size = 25),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 25),
+          legend.text = element_text(size = 15))
+}
+
+plot_error_codes(run2)
+
+run1$run_code
 
 ### weight choices so that waypoints that have not been visited are more preferable
 ### should get to start point by quickest means once all sites visited
@@ -280,6 +339,10 @@ lapply(run_analysis, function(x){
 ### include the original waypoint
 ### can I interpolate checkpoints at line crossings? (as an option)
 ### can I run this in parallel?
+
+########### other uses
+# fuel consumption
+# military spreading movements based on static (at least to begin with) difficulty
 
 
 
