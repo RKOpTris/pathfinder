@@ -1,5 +1,5 @@
 pathfinder: an algorithm for finding the most efficient path between
-waypoints - Part I
+waypoints - Part I - first steps
 ================
 RKOpTris
 2024-04-21
@@ -23,7 +23,7 @@ the more points tthe later you are!
 I thought it would be fun to write and algorithm that helps us plan a
 route, given the speed we typically run at, the topography, etc.
 
-Writing this from scratch, I am starting with a “dumb” algorithm, and
+Writing this from scratch, I am starting with a “stupid” algorithm, and
 then working iteratively to improve it and then integrate features such
 as topography and fatigue. We start with generating some points and
 paths at random in order to build our algorithm from the ground up.
@@ -487,10 +487,21 @@ most basic performance of the algorithm (not so good/efficient).
 
 To interpret the visualise_paths() output the first path starts as a
 purple arrow and gradually becomes green/yellow and gradually again
-becomes cyan at the finish. You might notice at “c” that it travels to
-“b” but then returns to “c” and so it appears as a double ended arrow
-(one plotted on top of the other). Note that “c” does not connect to “g”
-or “i” even though that path does pass by closely.
+becomes cyan at the finish. You might notice at
+![C](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;C "C")
+(I will refer to the waypoints in capitals for easier reading) that it
+travels to
+![B](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;B "B")
+but then returns to
+![C](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;C "C")
+and so it appears as a double ended arrow (one plotted on top of the
+other). Note that
+![C](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;C "C")
+does not connect to
+![G](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;G "G")
+or
+![I](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;I "I")
+even though that path does pass by closely.
 
 This is what the output of the model looks like, which we can use to
 assess and, with further tweaks to the way the algorithm works, improve
@@ -504,7 +515,7 @@ run1[1:(length(run1) - 1)]
 ```
 
     ## [[1]]
-    ## Time difference of 1.495612 mins
+    ## Time difference of 1.587625 mins
     ## 
     ## $total_runs
     ## [1] 50000
@@ -545,11 +556,15 @@ run1[1:(length(run1) - 1)]
 
 And printed separately here, it also records the reason that a run was
 abandoned. Because the algorithm is running in “stupid mode” it could
-visit waypoints “a” and “b” forever (though it would be unlikely to do
-so). We have built in to the algorithm ways to fail a run if it visits
-the same waypoint too many times (F-MW) or exceeds the maximum-allowed
-distance (F-XD), which gets updated each time the algorithm is
-successful in finding a new (shorter) route.
+visit waypoints
+![A](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;A "A")
+and
+![B](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;B "B")
+forever (though it would be unlikely to do so). We have built in to the
+algorithm ways to fail a run if it visits the same waypoint too many
+times (F-MW) or exceeds the maximum-allowed distance (F-XD), which gets
+updated each time the algorithm is successful in finding a new (shorter)
+route.
 
 ``` r
 run1$run_code[1:500]
