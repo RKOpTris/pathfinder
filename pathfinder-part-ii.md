@@ -187,7 +187,7 @@ run1[1:(length(run1) - 1)]
 ```
 
     ## [[1]]
-    ## Time difference of 41.46594 secs
+    ## Time difference of 34.80695 secs
     ## 
     ## $total_runs
     ## [1] 19316
@@ -297,7 +297,7 @@ run2[1:(length(run2) - 1)]
 ```
 
     ## [[1]]
-    ## Time difference of 12.78582 secs
+    ## Time difference of 12.01064 secs
     ## 
     ## $total_runs
     ## [1] 6997

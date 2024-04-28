@@ -81,7 +81,7 @@ while a predefined maximum number of runs has not ben reached *or* the last 3 (b
 
 Let's see how these changes have affected the behaviour and efficiency of the model.
 
-```{r, run_algo_1_penalty, fig.width=9, fig.height=9}
+```{r, run_algo_1_penalty, fig.width=6, fig.height=6}
 global_vars <- new.env()
 run_vars <- new.env()
 
@@ -99,7 +99,7 @@ Well, that's much better! It's found a faster route (at least 3 times!) in under
 
 Same set of points but a new path, this time setting the start from $I$. Note that 
 $G$ is solely connected to $F$, as is $I$ to $C$, and $H$ to $I$.
-```{r, run_algo_2, fig.width=9, fig.height=9}
+```{r, run_algo_2, fig.width=6, fig.height=6}
 my_points <- init_points()
 my_paths <- init_paths()
 my_paths <- init_paths()
