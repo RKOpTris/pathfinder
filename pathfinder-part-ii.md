@@ -83,8 +83,9 @@ maximum-allowed route gets shorter.
 To make the algorithm a bit more discerning we can introduce the idea of
 a penalty that is imposed on a waypoint when it has been visited. To do
 this, all waypoints are assigned a probability that they will be
-selected as the next waypoint. This starts as 1 in all cases, and so
-from
+selected as the next waypoint. In statistical fields, this is known as
+weighting. In this example, each waypoint starts with a penalty of 1 in
+all cases, and so from
 ![A](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;A "A")
 if connected points
 ![B](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;B "B")
@@ -123,6 +124,39 @@ In this way we keep the algorithm moving, rather than allowing it to
 saw from the error codes and the paths is took, we can see that this was
 an issue.
 
+With this more efficient method of choosing waypoints/paths we can
+expect that the algorithm might find an efficient route fasterr and it
+may not be necessary to continue to the maximum number of allowed runs.
+At the moment, the model reports the distance it has taken, if it is
+equal to or less than the record previously set. As such we will apply a
+conservative cut-off so that if the model fails to improve 3 times, then
+we can assume one of the most efficient, or the most efficient path has
+been discovered.
+
+So let’s update the pseudocode from the Part I:
+
+``` r
+while a predefined maximum number of runs has not ben reached *or* the last 3 (best) distances are all the same:
+  attempt by random choice to get from start/finish waypoint by visiting all other 
+  waypoints at least once, not exceeding the maximum allowed distance and not
+  exceeding the maximum number of visits for each waypoint
+  
+  before moving apply any probabalistic penalty to any potential paths available 
+  
+  for each visited waypoint apply a probabistic penalty
+  
+    if success:
+      set distance travelled as the maximum allowed distance for further loops 
+      report success
+      reset the run
+    else if fail:
+      report reason for failure
+      reset the run
+```
+
+Let’s see how these changes have affected the behaviour and efficiency
+of the model.
+
 ``` r
 global_vars <- new.env()
 run_vars <- new.env()
@@ -153,7 +187,7 @@ run1[1:(length(run1) - 1)]
 ```
 
     ## [[1]]
-    ## Time difference of 35.55332 secs
+    ## Time difference of 41.46594 secs
     ## 
     ## $total_runs
     ## [1] 19316
@@ -201,6 +235,17 @@ plot_error_codes(run1)
 ```
 
 ![](pathfinder-part-ii_files/figure-gfm/run_algo_1_penalty-2.png)<!-- -->
+
+Well, that’s much better! It’s found a faster route (at least 3 times!)
+in under half the time it took the original model. Looking at the error
+codes, we also see that the overwhelming reason for run errors was
+because it had exceeded the maximum-allowed distance, rather than having
+visited a a waypoint too many times. Being that this is the case, we
+could even remove the parameter of maximum number of visits to a
+waypoint (max_visits). In more complex tasks where there are more
+waypoints/paths, this arbitrary number could impede the algorithm and
+now it appears that it might be able to decide on its own based on any
+successful routes it has discovered.
 
 Same set of points but a new path, this time setting the start from
 ![I](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;I "I").
@@ -252,7 +297,7 @@ run2[1:(length(run2) - 1)]
 ```
 
     ## [[1]]
-    ## Time difference of 12.60922 secs
+    ## Time difference of 12.78582 secs
     ## 
     ## $total_runs
     ## [1] 6997

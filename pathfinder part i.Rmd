@@ -321,6 +321,7 @@ error_code_summary <- function(run_object){
   lapply(run_analysis, function(x){
     y <- x %>% data.frame()
     names(y) <- c("Error", "Frequency")
+    y <- y[y$Error != "S", ]
     y$Proportion <- y$Frequency / sum(y$Frequency)
     y
   })
