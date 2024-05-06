@@ -136,7 +136,9 @@ been discovered.
 So let’s update the pseudocode from the Part I:
 
 ``` r
-while a predefined maximum number of runs has not ben reached *or* the last 3 (best) distances are all the same:
+while a predefined maximum number of runs has not ben reached *or* the last 3 (best) distances 
+are all the same:
+  
   attempt by random choice to get from start/finish waypoint by visiting all other 
   waypoints at least once, not exceeding the maximum allowed distance and not
   exceeding the maximum number of visits for each waypoint
@@ -156,6 +158,8 @@ while a predefined maximum number of runs has not ben reached *or* the last 3 (b
 
 Let’s see how these changes have affected the behaviour and efficiency
 of the model.
+
+## Test 1
 
 ``` r
 global_vars <- new.env()
@@ -183,11 +187,16 @@ run1 <- withSeed(find_path(max_runs = 50000, visit_penalty = 0.25))
 
 ``` r
 plot_path(run1$best_route)
+```
+
+![](pathfinder-part-ii_files/figure-gfm/run_algo_1_penalty-1.png)<!-- -->
+
+``` r
 run1[1:(length(run1) - 1)]
 ```
 
     ## [[1]]
-    ## Time difference of 34.80695 secs
+    ## Time difference of 34.19804 secs
     ## 
     ## $total_runs
     ## [1] 19316
@@ -224,17 +233,14 @@ run1[1:(length(run1) - 1)]
     ## $successful_runs
     ## [1]    63  1023  2386  2970  7701 19315
 
+And the error codes…
+
 ``` r
 library(ggplot2)
-```
-
-![](pathfinder-part-ii_files/figure-gfm/run_algo_1_penalty-1.png)<!-- -->
-
-``` r
 plot_error_codes(run1)
 ```
 
-![](pathfinder-part-ii_files/figure-gfm/run_algo_1_penalty-2.png)<!-- -->
+![](pathfinder-part-ii_files/figure-gfm/run_algo_1_penalty_errors-1.png)<!-- -->
 
 Well, that’s much better! It’s found a faster route (at least 3 times!)
 in under half the time it took the original model. Looking at the error
@@ -247,7 +253,19 @@ waypoints/paths, this arbitrary number could impede the algorithm and
 now it appears that it might be able to decide on its own based on any
 successful routes it has discovered.
 
-Same set of points but a new path, this time setting the start from
+## Test 2
+
+You might be wondering why I don’t get the model to try and visit just
+one point each, and doing that by generating some permutations of
+possible paths, but as with these navigation races I like doing with my
+girlfriend, there are often a few waypoints that must be run down and
+returned; this may also be a sensible strategy sometimes. So as this is
+not a possibility, the model needs to have the sort of decision-making
+process it has.
+
+So let’s try it on the same set of points but with some different paths.
+Fortuitously, the second path generated gives us such a set up. This
+time it sets off from
 ![I](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;I "I").
 Note that
 ![G](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;G "G")
@@ -260,7 +278,12 @@ to
 and
 ![H](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;H "H")
 to
-![I](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;I "I").
+![I](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;I "I"),
+so waypoints will be visited multiple times. Notice also that there are
+fewer paths, and with fewer options the algorithm should, in theory,
+come about a solution faster. In future developments we will explore
+path complexity more generally, particularly in terms of computation
+time.
 
 ``` r
 my_points <- init_points()
@@ -297,7 +320,7 @@ run2[1:(length(run2) - 1)]
 ```
 
     ## [[1]]
-    ## Time difference of 12.01064 secs
+    ## Time difference of 12.41948 secs
     ## 
     ## $total_runs
     ## [1] 6997
@@ -337,8 +360,20 @@ run2[1:(length(run2) - 1)]
     ## $successful_runs
     ## [1]   83  509 1221 4756 5172 5445 6996
 
+And we get similar proportions of error codes…
+
 ``` r
 plot_error_codes(run2)
 ```
 
-![](pathfinder-part-ii_files/figure-gfm/run_algo_2-2.png)<!-- -->
+![](pathfinder-part-ii_files/figure-gfm/run_algo_2_errors-1.png)<!-- -->
+
+## Conclusion
+
+With a few simple tweaks, the algorithm is working much more
+efficiently. It is finding the shortest route and doing so much more
+quickly than in the first part of this series. Be sure to keep reading
+as we address path complexity and also get it working on real-world
+routes in which we will start introducing parameters of gradient,
+effort/stamina, etc., which are all important considerations when
+planning an orienteering race!

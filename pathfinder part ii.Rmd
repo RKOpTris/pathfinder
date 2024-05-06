@@ -61,7 +61,9 @@ With this more efficient method of choosing waypoints/paths we can expect that t
 So let's update the pseudocode from the Part I:
 
 ```{r, eval=FALSE}
-while a predefined maximum number of runs has not ben reached *or* the last 3 (best) distances are all the same:
+while a predefined maximum number of runs has not ben reached *or* the last 3 (best) distances 
+are all the same:
+  
   attempt by random choice to get from start/finish waypoint by visiting all other 
   waypoints at least once, not exceeding the maximum allowed distance and not
   exceeding the maximum number of visits for each waypoint
@@ -81,7 +83,9 @@ while a predefined maximum number of runs has not ben reached *or* the last 3 (b
 
 Let's see how these changes have affected the behaviour and efficiency of the model.
 
-```{r, run_algo_1_penalty, fig.width=6, fig.height=6}
+## Test 1
+
+```{r, run_algo_1_penalty, fig.width=9, fig.height=9}
 global_vars <- new.env()
 run_vars <- new.env()
 
@@ -91,15 +95,24 @@ visualise_paths()
 run1 <- withSeed(find_path(max_runs = 50000, visit_penalty = 0.25))
 plot_path(run1$best_route)
 run1[1:(length(run1) - 1)]
+```
+
+And the error codes...
+
+```{r, run_algo_1_penalty_errors, fig.width=9, fig.height=4}
 library(ggplot2)
 plot_error_codes(run1)
 ```
 
 Well, that's much better! It's found a faster route (at least 3 times!) in under half the time it took the original model. Looking at the error codes, we also see that the overwhelming reason for run errors was because it had exceeded the maximum-allowed distance, rather than having visited a a waypoint too many times. Being that this is the case, we could even remove the parameter of maximum number of visits to a waypoint (max_visits). In more complex tasks where there are more waypoints/paths, this arbitrary number could impede the algorithm and now it appears that it might be able to decide on its own based on any successful routes it has discovered.
 
-Same set of points but a new path, this time setting the start from $I$. Note that 
-$G$ is solely connected to $F$, as is $I$ to $C$, and $H$ to $I$.
-```{r, run_algo_2, fig.width=6, fig.height=6}
+## Test 2
+
+You might be wondering why I don't get the model to try and visit just one point each, and doing that by generating some permutations of possible paths, but as with these navigation races I like doing with my girlfriend, there are often a few waypoints that must be run down and returned; this may also be a sensible strategy sometimes. So as this is not a possibility, the model needs to have the sort of decision-making process it has.
+
+So let's try it on the same set of points but with some different paths. Fortuitously, the second path generated gives us such a set up. This time it sets off from $I$. Note that $G$ is solely connected to $F$, as is $I$ to $C$, and $H$ to $I$, so waypoints will be visited multiple times. Notice also that there are fewer paths, and with fewer options the algorithm should, in theory, come about a solution faster. In future developments we will explore path complexity more generally, particularly in terms of computation time.
+
+```{r, run_algo_2, fig.width=9, fig.height=9}
 my_points <- init_points()
 my_paths <- init_paths()
 my_paths <- init_paths()
@@ -107,5 +120,14 @@ visualise_paths()
 run2 <- withSeed(find_path(start_waypoint = "i", max_visits = 3, max_runs = 50000))
 plot_path(run2$best_route)
 run2[1:(length(run2) - 1)]
+```
+
+And we get similar proportions of error codes...
+
+```{r, run_algo_2_errors, fig.width=9, fig.height=4}
 plot_error_codes(run2)
 ```
+
+## Conclusion
+
+With a few simple tweaks, the algorithm is working much more efficiently. It is finding the shortest route and doing so much more quickly than in the first part of this series. Be sure to keep reading as we address path complexity and also get it working on real-world routes in which we will start introducing parameters of gradient, effort/stamina, etc., which are all important considerations when planning an orienteering race!
